@@ -67,11 +67,10 @@ func TestAddLabels(t *testing.T) {
 			case 4:
 				lb = "sig/planner"
 			}
-			labels, _, err := cli.Issues.AddLabelsToIssue(ctx, owner, repo, *issue.Number, []string{lb})
+			_, _, err := cli.Issues.AddLabelsToIssue(ctx, owner, repo, *issue.Number, []string{lb})
 			if err != nil {
 				return err
 			}
-			fmt.Printf("#%d, labels: %s\n", *issue.Number, labelNames(labels))
 			return nil
 		},
 	}
@@ -85,7 +84,6 @@ func TestRemoveLabels(t *testing.T) {
 	editOpt := &editOption{
 		labelOption: labelOption{},
 		editIssue: func(issue *github.Issue) error {
-			fmt.Printf("#%d\n", *issue.Number)
 			_, err := cli.Issues.RemoveLabelsForIssue(ctx, owner, repo, *issue.Number)
 			return err
 		},
@@ -100,7 +98,6 @@ func TestCloseIssues(t *testing.T) {
 	editOpt := &editOption{
 		labelOption: labelOption{},
 		editIssue: func(issue *github.Issue) error {
-			fmt.Printf("#%d\n", *issue.Number)
 			state := "close"
 			_, _, err := cli.Issues.Edit(ctx, owner, repo, *issue.Number, &github.IssueRequest{State: &state})
 			return err

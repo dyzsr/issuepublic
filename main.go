@@ -20,6 +20,7 @@ var (
 	owner   string
 	repo    string
 	mentor  string
+	limit   int
 
 	ctx = context.Background()
 	cli *github.Client
@@ -32,6 +33,7 @@ func init() {
 	flag.StringVar(&owner, "owner", "dyzsr", "Owner of repo")
 	flag.StringVar(&repo, "repo", "issuepublic", "Repo name")
 	flag.StringVar(&mentor, "mentor", "lzmhhh123", "Mentor of the issue")
+	flag.IntVar(&limit, "limit", 10, "Number of issues to be processed")
 }
 
 func initCli() {
@@ -185,11 +187,6 @@ var (
 )
 
 func defaultEditIssue(issue *github.Issue) (err error) {
-	printIssue(issue)
-	if inspect {
-		return nil
-	}
-
 	var desc string
 	if issue.Body != nil {
 		desc = *issue.Body
@@ -230,7 +227,19 @@ func editIssues(opt *editOption) error {
 		return errors.WithStack(err)
 	}
 
-	for _, issue := range issues {
+	if limit == 0 {
+		limit = len(issues)
+	}
+	for i, issue := range issues {
+		if i == limit {
+			log.Printf("reached limit")
+			break
+		}
+
+		printIssue(issue)
+		if inspect {
+			continue
+		}
 		if err := opt.editIssue(issue); err != nil {
 			return errors.WithStack(err)
 		}
