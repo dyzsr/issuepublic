@@ -76,6 +76,9 @@ func getIssuesByLabels(owner string, repo string, opt *labelOption) ([]*github.I
 
 	var ret []*github.Issue
 	for _, issue := range allIssues {
+		if issue.IsPullRequest() {
+			continue
+		}
 		var include, exclude bool
 		for _, lb := range opt.or {
 			for _, label := range issue.Labels {
