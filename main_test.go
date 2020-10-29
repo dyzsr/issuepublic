@@ -14,19 +14,6 @@ var (
 	writeDesc bool
 )
 
-func TestFilterOptions(t *testing.T) {
-	isPR := false
-	linkedPR := false
-	filter := &filterOptions{
-		withLabel: include,
-		orLabel:   sigLabels,
-		noLabel:   exclude,
-		isPR:      &isPR,
-		linkedPR:  &linkedPR,
-	}
-	t.Log(filter.queryString())
-}
-
 func TestCreateIssues(t *testing.T) {
 	title := "Issue on " + time.Now().String()
 	var body string
