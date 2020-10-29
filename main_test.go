@@ -27,7 +27,8 @@ func TestCreateIssues(t *testing.T) {
 These sql results are inconsistent with MySQL
 
 ### 1. Minimal reproduce step (Required)
-...
+
+create table t (a int, b int);
 
 ### 2. What did you expect to see? (Required)
 ...
