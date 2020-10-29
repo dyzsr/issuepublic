@@ -30,7 +30,8 @@ These sql results are inconsistent with MySQL
 ...
 
 ### 2. What did you expect to see? (Required)
-...
+
+select * from t;
 
 ### 3. What did you see instead (Required)
 ...
