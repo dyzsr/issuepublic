@@ -44,108 +44,6 @@ func initCli() {
 	cli = github.NewClient(tc)
 }
 
-type labelOption struct {
-	and []string
-	or  []string
-	nor []string
-}
-
-func getIssuesByLabels(owner string, repo string, opt *labelOption) ([]*github.Issue, error) {
-	log.Printf("start getIssuesByLabels")
-	defer log.Printf("end getIssuesByLabels")
-
-	if opt == nil {
-		opt = &labelOption{}
-	}
-
-	var allIssues []*github.Issue
-	nextPage := 1
-	for nextPage > 0 {
-		listOpt := &github.IssueListByRepoOptions{
-			Labels: opt.and,
-		}
-		listOpt.Page = nextPage
-		issues, resp, err := cli.Issues.ListByRepo(ctx, owner, repo, listOpt)
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		log.Printf("got: %v\n", issueNumbers(issues))
-		allIssues = append(allIssues, issues...)
-		nextPage = resp.NextPage
-	}
-
-	var ret []*github.Issue
-	for _, issue := range allIssues {
-		if issue.IsPullRequest() {
-			continue
-		}
-		var include, exclude bool
-		for _, lb := range opt.or {
-			for _, label := range issue.Labels {
-				if lb == *label.Name {
-					include = true
-					break
-				}
-			}
-		}
-		if len(opt.or) == 0 {
-			include = true
-		}
-		for _, lb := range opt.nor {
-			for _, label := range issue.Labels {
-				if lb == *label.Name {
-					exclude = true
-					break
-				}
-			}
-		}
-		if include && !exclude {
-			ret = append(ret, issue)
-		}
-	}
-
-	return ret, nil
-}
-
-func printIssue(issue *github.Issue) {
-	fmt.Printf("#%d:\n", *issue.Number)
-	fmt.Printf("\tname: %s\n", *issue.Title)
-	fmt.Printf("\turl: %s\n", *issue.HTMLURL)
-	fmt.Printf("\tlabels: %s\n", labelNames(issue.Labels))
-}
-
-func issueNumbers(issues []*github.Issue) []int {
-	ret := make([]int, 0, len(issues))
-	for _, issue := range issues {
-		ret = append(ret, *issue.Number)
-	}
-	return ret
-}
-
-func labelNames(labels []*github.Label) []string {
-	ret := make([]string, 0, len(labels))
-	for _, label := range labels {
-		ret = append(ret, *label.Name)
-	}
-	return ret
-}
-
-func appendLabels(labels []*string, newLabels ...string) []*string {
-	for _, label := range newLabels {
-		labels = append(labels, &label)
-	}
-	return labels
-}
-
-func findLabel(labels []string, target string) bool {
-	for _, label := range labels {
-		if target == label {
-			return true
-		}
-	}
-	return false
-}
-
 func editDesc(desc string, slackChannel string) (string, error) {
 	matched, err := regexp.MatchString("(?m)^## Description", desc)
 	if err != nil {
@@ -155,11 +53,6 @@ func editDesc(desc string, slackChannel string) (string, error) {
 	if !matched {
 		ret = "## Description\n" + ret
 	}
-	//matched, err = regexp.MatchString("(?s)(?m)^## SIG slack channel.*^## Score.*^## Mentor", desc)
-	//if err != nil {
-	//	return "", errors.WithStack(err)
-	//}
-	//if !matched {
 	ret += fmt.Sprintf(`
 ## SIG slack channel
 
@@ -173,7 +66,6 @@ func editDesc(desc string, slackChannel string) (string, error) {
 
 - @%s
 `, slackChannel, mentor)
-	//}
 
 	return ret, nil
 }
@@ -218,27 +110,19 @@ func defaultEditIssue(issue *github.Issue) (err error) {
 }
 
 type editOption struct {
-	labelOption
+	filterOptions
 	editIssue func(*github.Issue) error
 }
 
 func editIssues(opt *editOption) error {
 	log.Printf("start editIssues")
 	defer log.Printf("end editIssues")
-	issues, err := getIssuesByLabels(owner, repo, &opt.labelOption)
+	issues, err := getIssuesByFilter(owner, repo, &opt.filterOptions)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	if limit == 0 {
-		limit = len(issues)
-	}
-	for i, issue := range issues {
-		if i == limit {
-			log.Printf("reached limit")
-			break
-		}
-
+	for _, issue := range issues {
 		printIssue(issue)
 		if inspect {
 			continue
@@ -255,10 +139,13 @@ func main() {
 	initCli()
 
 	editOpt := &editOption{
-		labelOption: labelOption{
-			and: include,
-			or:  sigLabels,
-			nor: exclude,
+		filterOptions: filterOptions{
+			withLabel: include,
+			orLabel:   sigLabels,
+			noLabel:   exclude,
+			isPR:      fromBool(false),
+			isOpen:    fromBool(true),
+			linkedPR:  fromBool(false),
 		},
 		editIssue: defaultEditIssue,
 	}

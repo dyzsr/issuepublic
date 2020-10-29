@@ -8,12 +8,24 @@ import (
 	"time"
 
 	"github.com/google/go-github/v32/github"
-	"github.com/kr/pretty"
 )
 
 var (
 	writeDesc bool
 )
+
+func TestFilterOptions(t *testing.T) {
+	isPR := false
+	linkedPR := false
+	filter := &filterOptions{
+		withLabel: include,
+		orLabel:   sigLabels,
+		noLabel:   exclude,
+		isPR:      &isPR,
+		linkedPR:  &linkedPR,
+	}
+	t.Log(filter.queryString())
+}
 
 func TestCreateIssues(t *testing.T) {
 	title := "Issue on " + time.Now().String()
@@ -53,6 +65,7 @@ These sql results are inconsistent with MySQL
 
 func TestAddLabels(t *testing.T) {
 	editOpt := &editOption{
+		filterOptions: defaultFilter,
 		editIssue: func(issue *github.Issue) error {
 			var lb string
 			switch rand.Intn(5) {
@@ -82,6 +95,7 @@ func TestAddLabels(t *testing.T) {
 
 func TestRemoveLabels(t *testing.T) {
 	editOpt := &editOption{
+		filterOptions: defaultFilter,
 		editIssue: func(issue *github.Issue) error {
 			_, err := cli.Issues.RemoveLabelsForIssue(ctx, owner, repo, *issue.Number)
 			return err
@@ -95,24 +109,11 @@ func TestRemoveLabels(t *testing.T) {
 
 func TestCloseIssues(t *testing.T) {
 	editOpt := &editOption{
+		filterOptions: defaultFilter,
 		editIssue: func(issue *github.Issue) error {
 			state := "close"
 			_, _, err := cli.Issues.Edit(ctx, owner, repo, *issue.Number, &github.IssueRequest{State: &state})
 			return err
-		},
-	}
-	err := editIssues(editOpt)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestPullRequestLinks(t *testing.T) {
-	editOpt := &editOption{
-		editIssue: func(issue *github.Issue) error {
-			prlinks := issue.GetPullRequestLinks()
-			pretty.Println(prlinks)
-			return nil
 		},
 	}
 	err := editIssues(editOpt)
