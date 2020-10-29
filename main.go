@@ -109,6 +109,61 @@ func defaultEditIssue(issue *github.Issue) (err error) {
 	return nil
 }
 
+func getIssuesByFilter(owner string, repo string, filters *filterOptions) ([]*github.Issue, error) {
+	log.Printf("start getIssuesByFilter")
+	defer log.Printf("end getIssuesByFilter")
+
+	if filters == nil {
+		filters = &filterOptions{}
+	}
+	query := filters.queryString()
+
+	var allIssues []*github.Issue
+	nextPage := 1
+	for nextPage > 0 {
+		searchOpts := &github.SearchOptions{
+			Sort: "created",
+		}
+		searchOpts.Page = nextPage
+
+		issuesResult, resp, err := cli.Search.Issues(ctx, query, searchOpts)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		issues := issuesResult.Issues
+		log.Printf("got: %v\n", issueNumbers(issues))
+
+		for _, issue := range issues {
+			var include bool
+			for _, lb := range filters.orLabel {
+				for _, label := range issue.Labels {
+					if lb == *label.Name {
+						include = true
+						break
+					}
+				}
+			}
+			if len(filters.orLabel) == 0 {
+				include = true
+			}
+
+			if include {
+				allIssues = append(allIssues, issue)
+			}
+			if limit > 0 && len(allIssues) >= limit {
+				break
+			}
+		}
+		if limit > 0 && len(allIssues) >= limit {
+			break
+		}
+
+		nextPage = resp.NextPage
+	}
+
+	return allIssues, nil
+}
+
 type editOption struct {
 	filterOptions
 	editIssue func(*github.Issue) error
@@ -121,6 +176,8 @@ func editIssues(opt *editOption) error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	log.Printf("actually got: %v", issueNumbers(issues))
 
 	for _, issue := range issues {
 		printIssue(issue)
